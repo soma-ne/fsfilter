@@ -1,0 +1,14 @@
+[package]
+name = "fsfilter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libbpf-rs = "0.24.8"
+libc = "0.2.169"
+
+[build-dependencies]
+libbpf-cargo = "0.24.8"
+
+[package.metadata.libbpf]
+prog_dir = "src/bpf"
