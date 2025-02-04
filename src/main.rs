@@ -4,6 +4,9 @@ use libbpf_rs::skel::SkelBuilder;
 use libbpf_rs::skel::Skel;
 use libbpf_rs::skel::OpenSkel;
 use std::error::Error;
+use std::io::Cursor;
+use std::io::BufRead;
+use byteorder::{LittleEndian, ReadBytesExt};
 
 mod fsfilter {
     include!(concat!(
@@ -14,8 +17,14 @@ mod fsfilter {
 
 use fsfilter::*;
 
-fn handle_event(_data: &[u8]) -> i32 {
-    println!("handler called!");
+fn handle_event(data: &[u8]) -> i32 {
+    let mut cur = Cursor::new(data);
+    let mut buf: Vec<u8> = Vec::new();
+    let fd = cur.read_i32::<LittleEndian>().unwrap();
+    let dfd = cur.read_i32::<LittleEndian>().unwrap();
+    let _size = cur.read_until(0x00, &mut buf);
+    let filename = String::from_utf8(buf).unwrap();
+    println!("fd:{0}, dfd:{1}, filename:{2}", fd, dfd, filename);
     0
 }
 

@@ -11,7 +11,6 @@ struct data_t {
 	int fd;
 	int dfd;
 	char filename[256];
-	struct open_how how;
 };
 
 SEC("fexit/do_sys_openat2")
@@ -27,7 +26,6 @@ int BPF_PROG(do_sys_openat2, int dfd, const char *filename,
         data->fd = fd;
         data->dfd = dfd;
         bpf_probe_read_user_str(data->filename, sizeof(data->filename), filename);
-        data->how = *how;
 
         bpf_ringbuf_submit(data,0);
         return 0;
