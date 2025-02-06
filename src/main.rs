@@ -6,6 +6,8 @@ use libbpf_rs::skel::OpenSkel;
 use std::error::Error;
 use std::io::Cursor;
 use std::io::Read;
+use std::path::{PathBuf};
+use std::fs;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 mod fsfilter {
@@ -20,7 +22,6 @@ use fsfilter::*;
 fn handle_event(data: &[u8]) -> i32 {
     let mut cur = Cursor::new(data);
     let fd = cur.read_i32::<LittleEndian>().unwrap();
-    let dfd = cur.read_i32::<LittleEndian>().unwrap();
     let pid = cur.read_i32::<LittleEndian>().unwrap();
 
     let mut comm_buf = [0;255];
@@ -30,14 +31,15 @@ fn handle_event(data: &[u8]) -> i32 {
                    .trim_matches('\0')
                    .to_string();
 
-    let mut filename_buf = [0;255];
-    let _size = cur.read_exact(&mut filename_buf);
-    let filename = std::str::from_utf8(&filename_buf)
-                       .map_or("".to_string(), |s| s.to_string())
-                       .trim_matches('\0')
-                       .to_string();
+    let mut filename: String = "".to_string();
+    if fd > 0 {
+        let fd_path = format!("/proc/{}/fd/{}", pid, fd);
+        filename = fs::read_link(fd_path)
+                        .map_or(PathBuf::new(), |s| s)
+                        .to_str().unwrap().to_string();
+    }
 
-    println!("fd:{0:4}    dfd:{1:4}    pid:{2:6}      comm:{3:25}  filename:{4:25}", fd, dfd, pid, &comm, &filename);
+    println!("fd:{0:4}  pid:{1:6}    comm:{2:20} filename:{3:25}", fd, pid, &comm, filename);
     0
 }
 
