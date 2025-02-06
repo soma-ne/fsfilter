@@ -202,6 +202,7 @@ dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
+ "regex",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ use std::io::Cursor;
 use std::io::Read;
 use std::path::{PathBuf};
 use std::fs;
+use regex::Regex;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 mod fsfilter {
@@ -19,10 +20,34 @@ mod fsfilter {
 
 use fsfilter::*;
 
+fn get_user_from_pid(pid: u32) -> String {
+    let path = format!("/proc/{}/status", pid);
+    let content = fs::read_to_string(path)
+                    .map_or("".to_string(), |s| s);
+    let mut re = Regex::new(r"Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)").unwrap();
+
+    if let Some(caps) = re.captures(&content) {
+        let uid = caps.get(1).unwrap().as_str();
+
+        let passwd = fs::read_to_string("/etc/passwd")
+                        .map_or("".to_string(), |s| s);
+
+        let pattern = format!(r"(?m)^(.+):x:{}", uid);
+        re = Regex::new(&pattern).unwrap();
+
+        if let Some(caps) = re.captures(&passwd) {
+            let user = caps.get(1).unwrap().as_str();
+            return user.to_string();
+        }
+    }
+
+    return "".to_string();
+}
+
 fn handle_event(data: &[u8]) -> i32 {
     let mut cur = Cursor::new(data);
     let fd = cur.read_i32::<LittleEndian>().unwrap();
-    let pid = cur.read_i32::<LittleEndian>().unwrap();
+    let pid = cur.read_u32::<LittleEndian>().unwrap();
 
     let mut comm_buf = [0;255];
     let _size = cur.read_exact(&mut comm_buf);
@@ -30,6 +55,10 @@ fn handle_event(data: &[u8]) -> i32 {
                    .map_or("".to_string(), |s| s.to_string())
                    .trim_matches('\0')
                    .to_string();
+
+    if comm == "fsfilter" {
+        return 0;
+    }
 
     let mut filename: String = "".to_string();
     if fd > 0 {
@@ -39,7 +68,9 @@ fn handle_event(data: &[u8]) -> i32 {
                         .to_str().unwrap().to_string();
     }
 
-    println!("fd:{0:4}  pid:{1:6}    comm:{2:20} filename:{3:25}", fd, pid, &comm, filename);
+    let user: String = get_user_from_pid(pid);
+
+    println!("fd:{0:4}  pid:{1:6}  user:{2:25}  comm:{3:25} filename:{4:25}", fd, pid, user, &comm, filename);
     0
 }
 
