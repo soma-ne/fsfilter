@@ -9,10 +9,8 @@ struct {
 
 struct data_t {
 	int fd;
-	int dfd;
         int pid;
         char comm[256];
-	char filename[256];
 };
 
 SEC("fexit/do_sys_openat2")
@@ -26,10 +24,8 @@ int BPF_PROG(do_sys_openat2, int dfd, const char *filename,
                 return 0;
 
         data->fd = fd;
-        data->dfd = dfd;
         data->pid = (int)(bpf_get_current_pid_tgid() >> 32);
         bpf_get_current_comm(data->comm, (__u32)256);
-        bpf_probe_read_user_str(data->filename, sizeof(data->filename), filename);
 
         bpf_ringbuf_submit(data,0);
         return 0;
