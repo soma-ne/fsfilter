@@ -10,6 +10,7 @@ struct {
 struct data_t {
 	int fd;
         int pid;
+        char filename[256];
         char comm[256];
 };
 
@@ -25,6 +26,7 @@ int BPF_PROG(do_sys_openat2, int dfd, const char *filename,
 
         data->fd = fd;
         data->pid = (int)(bpf_get_current_pid_tgid() >> 32);
+        bpf_probe_read_user_str(data->filename, (__u32)256, (void *)filename);
         bpf_get_current_comm(data->comm, (__u32)256);
 
         bpf_ringbuf_submit(data,0);
